@@ -14,8 +14,13 @@ module TRMNLP
     # The Firefox one example renders in, checked out of the pool on first use and back in by #release.
     # Pages load the way `trmnlp build --png` loads them, through ScreenGenerator and Screenshot.
     class Browser
-      def initialize(pool:)
+      # driver_factory: builds the Firefox of a fresh browser. page_requests: what answers the pages'
+      # requests under `trmnlp test --page-proxy` (a PageRequests), told which screen's mocks to use as each
+      # page loads.
+      def initialize(pool:, driver_factory: FirefoxDriver.method(:build), page_requests: nil)
         @pool = pool
+        @driver_factory = driver_factory
+        @page_requests = page_requests
         @screenshot = Screenshot.new(pool:)
         @pages = {}.compare_by_identity
         @fresh_browsers = []
@@ -23,8 +28,9 @@ module TRMNLP
 
       # A Firefox of its own, with nothing cached, closed when this browser is released.
       def fresh
-        pool = BrowserPool.new(driver_factory: FirefoxDriver.method(:build), max_size: 1)
-        self.class.new(pool:).tap { @fresh_browsers << [it, pool] }
+        pool = BrowserPool.new(driver_factory: @driver_factory, max_size: 1)
+        self.class.new(pool:, driver_factory: @driver_factory, page_requests: @page_requests)
+            .tap { @fresh_browsers << [it, pool] }
       end
 
       # The PNG path, quantized to the device's bit depth like a build's.
@@ -70,6 +76,7 @@ module TRMNLP
 
       def show(screen)
         html, width, height = @pages.fetch(screen)
+        @page_requests&.current = screen.page_mocks
         @screenshot.show(driver, html, width, height,
                          wait_for: screen.wait_for, wait_for_timeout: screen.wait_for_timeout)
         @showing = screen

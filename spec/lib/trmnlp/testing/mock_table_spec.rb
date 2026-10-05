@@ -66,6 +66,31 @@ RSpec.describe TRMNLP::Testing::MockTable do
     end
   end
 
+  describe 'a request from the page' do
+    let(:mocks) do
+      { '*' => 'every api', 'https://trmnl.com/js/*' => 'named', 'https://img.test/*' => 'image', /\.png\z/ => 'regexp' }
+    end
+
+    def answers?(url) = table.mocked?('GET', url, via: :page)
+
+    it 'is answered by a mock for its url' do
+      expect(table.answer('GET', 'https://img.test/a.png', via: :page).body).to eq('image')
+    end
+
+    it 'is not answered by a mock for every url, which is meant for the plugin\'s APIs' do
+      expect(answers?('https://cdn.test/lib.js')).to be(false)
+    end
+
+    it "is answered for one of TRMNL's files only by a mock that names the host" do
+      expect([answers?('https://trmnl.com/js/3.4.0/plugins.js'), answers?('https://trmnl.com/images/a.png'),
+              answers?('https://fonts.gstatic.com/s/inter/a.png')]).to eq([true, false, false])
+    end
+
+    it 'leaves the polling and the transform as they were' do
+      expect(table.answer('GET', 'https://cdn.test/lib.js', via: :transform).body).to eq('every api')
+    end
+  end
+
   describe 'a slow answer' do
     let(:mocks) { { 'https://api.test/slow' => { body: 'late', delay: 0.2, body_delay: 0.1 } } }
 

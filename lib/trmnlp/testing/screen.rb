@@ -4,6 +4,8 @@ require 'capybara'
 require 'delegate'
 require 'nokogiri'
 
+require_relative 'page_requests'
+
 module TRMNLP
   module Testing
     # A rendered view, as Firefox drew it. Capybara's finders and matchers (have_text, have_css, within...)
@@ -39,11 +41,12 @@ module TRMNLP
         return copy.outerHTML;
       JS
 
-      attr_reader :html, :device, :view, :png_path, :result, :wait_for, :wait_for_timeout
+      attr_reader :html, :device, :view, :png_path, :result, :wait_for, :wait_for_timeout, :page_mocks
 
       # rubocop:disable-next Metrics/ParameterLists -- what a render produced and how to wait for it
-      def initialize(html:, device:, view:, browser:, result:, wait_for: nil, wait_for_timeout: 5)
+      def initialize(html:, device:, view:, browser:, result:, wait_for: nil, wait_for_timeout: 5, page_mocks: nil)
         @html = html
+        @page_mocks = page_mocks
         @wait_for = wait_for
         @wait_for_timeout = wait_for_timeout
         @device = device
@@ -68,6 +71,14 @@ module TRMNLP
 
       # Script errors, unhandled rejections, console.error lines and files that failed to load.
       def problems = evaluate('window.__trmnlpProblems || []')
+
+      # Every request the page made in Firefox, under `trmnlp test --page-proxy`: its url, its status, and
+      # whether a mock answered it (mocked:).
+      def page_requests
+        raise TestingError, 'page_requests needs `trmnlp test --page-proxy`' unless ENV.key?(PageRequests::ENV_KEY)
+
+        page_mocks.requests.map { it.except(:delivered, :reset) }
+      end
 
       def png_bytes = File.binread(png_path)
 

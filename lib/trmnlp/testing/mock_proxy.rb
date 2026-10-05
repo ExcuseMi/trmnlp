@@ -32,8 +32,10 @@ module TRMNLP
         @server&.close
       end
 
+      def address = "127.0.0.1:#{@server.addr[1]}"
+
       def environment
-        proxy = "http://127.0.0.1:#{@server.addr[1]}"
+        proxy = "http://#{address}"
         { 'HTTP_PROXY' => proxy, 'HTTPS_PROXY' => proxy, 'http_proxy' => proxy, 'https_proxy' => proxy,
           'NO_PROXY' => '', 'no_proxy' => '', 'NODE_USE_ENV_PROXY' => '1' }.merge(@authority.environment)
       end

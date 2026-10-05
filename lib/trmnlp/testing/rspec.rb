@@ -10,6 +10,8 @@ require_relative '../browser_pool'
 require_relative '../firefox_driver'
 require_relative 'browser'
 require_relative 'certificate_authority'
+require_relative 'mock_proxy'
+require_relative 'page_requests'
 require_relative 'plugin'
 require_relative 'report'
 require_relative 'publishable_recipe'
@@ -27,14 +29,28 @@ module TRMNLP
       @authority ||= CertificateAuthority.new.tap { |authority| at_exit { authority.remove } }
     end
 
-    def self.browser_pool
-      @browser_pool ||= BrowserPool.new(driver_factory: FirefoxDriver.method(:build), max_size: 1)
+    def self.page_proxy? = ENV.key?(PageRequests::ENV_KEY)
+
+    def self.page_requests = (@page_requests ||= PageRequests.new if page_proxy?)
+
+    # `trmnlp test --page-proxy`: the proxy every Firefox of this run asks the pages' files through.
+    def self.page_proxy
+      @page_proxy ||= MockProxy.new(table: page_requests, authority:).start.tap { |proxy| at_exit { proxy.stop } }
     end
+
+    def self.driver_factory
+      page_proxy? ? -> { FirefoxDriver.build(proxy: page_proxy.address) } : FirefoxDriver.method(:build)
+    end
+
+    def self.browser_pool = @browser_pool ||= BrowserPool.new(driver_factory:, max_size: 1)
 
     module Helpers
       def trmnl = @trmnl ||= Plugin.new(Testing.plugin_dir, browser: trmnl_browser, authority: Testing.authority)
 
-      def trmnl_browser = @trmnl_browser ||= Browser.new(pool: Testing.browser_pool)
+      def trmnl_browser
+        @trmnl_browser ||= Browser.new(pool: Testing.browser_pool, driver_factory: Testing.driver_factory,
+                                       page_requests: Testing.page_requests)
+      end
     end
   end
 end

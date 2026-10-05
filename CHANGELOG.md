@@ -1,6 +1,10 @@
 
 # Changelog
 
+## Unreleased
+
+- `trmnlp test --page-proxy` (or `TRMNLP_TEST_PAGE_PROXY=1`) answers the page's own requests from the mocks: Firefox runs behind the mock proxy, so `mocks:` answer a script, an image or a `fetch` in the markup, and `screen.page_requests` lists what the page asked for. A key that starts with `*` still answers only the polling and the transform, and TRMNL's and Google Fonts' files are answered only by a key naming their host. What no mock answers is sent on to its server.
+
 ## 0.19.0
 
 - `it_behaves_like 'a publishable recipe'` also checks every screen for leaked values (`undefined`, `NaN`, `null`, `[object Object]`, `Liquid error`, raw `{{` or `{%`), draws the full view when the API answers with nothing, answers 500 or cannot be reached, and draws it with each option of every select field. New matchers: `have_no_leaked_text` and `have_no_transform_error`. (#181)

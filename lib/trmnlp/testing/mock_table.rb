@@ -11,10 +11,15 @@ module TRMNLP
     # A value is an answer ({ json:, body:, status:, headers:, delay:, body_delay:, advance_clock:, error: :reset }),
     # in seconds where it is a time; a String body,
     # a lambda that takes the request and returns an answer, or an Array of answers used in order.
+    #
+    # The page in Firefox asks it too (via: :page), with two exceptions that keep a mock for "every API"
+    # from breaking the page itself: a key that starts with `*` does not answer the page, and a file of
+    # TRMNL's or Google Fonts' is answered only by a key that names its host.
     class MockTable
       Response = Struct.new(:status, :headers, :body, :body_delay, :record)
       UNMOCKED_STATUS = 599
       METHOD_PREFIX = /\A(GET|POST|PUT|PATCH|DELETE|HEAD) /
+      FRAMEWORK_HOSTS = %w[trmnl.com fonts.googleapis.com fonts.gstatic.com].freeze
 
       attr_reader :requests
 
@@ -37,6 +42,16 @@ module TRMNLP
         @lock.synchronize do
           @requests.each { |request| request[:aborted] = !request.delete(:delivered) && !request[:reset] }
         end
+      end
+
+      def mocked?(verb, url, via: :polling)
+        request = { method: verb.upcase, url:, via: }
+        @lock.synchronize { @mocks.any? { matches?(it[:key], request) } }
+      end
+
+      def record(entry)
+        @lock.synchronize { @requests << entry }
+        entry
       end
 
       # nil when the mock resets the connection. The request is recorded before it is answered, so one the
@@ -83,6 +98,7 @@ module TRMNLP
       end
 
       def matches?(key, request)
+        return false if request[:via] == :page && !answers_page?(key, request[:url])
         return key.match?(request[:url]) if key.is_a?(Regexp)
 
         verb = key[METHOD_PREFIX, 1]
@@ -93,9 +109,11 @@ module TRMNLP
         /\A#{Regexp.escape(pattern).gsub('\*', '.*')}\z/.match?(target)
       end
 
-      def record(entry)
-        @lock.synchronize { @requests << entry }
-        entry
+      def answers_page?(key, url)
+        host = FRAMEWORK_HOSTS.find { url.match?(%r{\Ahttps?://([^/]*\.)?#{Regexp.escape(it)}[:/]}) }
+        return key.is_a?(String) && key.include?(host) if host
+
+        !(key.is_a?(String) && key.sub(METHOD_PREFIX, '').start_with?('*'))
       end
     end
   end

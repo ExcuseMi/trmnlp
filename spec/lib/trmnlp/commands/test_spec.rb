@@ -166,6 +166,47 @@ RSpec.describe 'trmnlp test' do
     end
   end
 
+  context 'with a page that loads files of its own' do
+    let(:spec_body) do
+      <<~RUBY
+        RSpec.describe 'Greeting' do
+          let(:library) { { body: 'document.querySelector(".label").textContent = "from the mock";' } }
+          let(:mocks) { { 'https://cdn.test/lib.js' => library, '*' => { json: { name: 'Ada' } } } }
+          let(:screen) { trmnl.render(device: { width: 800, height: 480 }, mocks:) }
+
+          it 'answers the page from the mocks, and the Framework from its own files' do
+            expect(screen).to have_text('Hello Ada').and have_text('from the mock').and have_no_problems
+          end
+
+          it 'records what the page asked for' do
+            expect(screen.page_requests).to include(
+              include(url: 'https://cdn.test/lib.js', mocked: true, status: 200),
+              include(url: a_string_matching(%r{\\Ahttps://trmnl.com/js/}), mocked: false, status: 200)
+            )
+          end
+
+          it 'keeps the page requests apart from the run' do
+            expect(screen.result.requests.map { it[:via] }).to eq([:polling])
+          end
+        end
+      RUBY
+    end
+
+    before do
+      File.write(File.join(plugin_dir, 'src', 'full.liquid'),
+                 '<div class="layout"><span class="title">{{ greeting }}</span><span class="label"></span></div>' \
+                 '<script src="https://cdn.test/lib.js"></script>')
+    end
+
+    it 'answers them from the mocks with --page-proxy' do
+      expect(run_tests('--page-proxy').first).to include('3 examples, 0 failures')
+    end
+
+    it 'leaves the page to the network without it, and says what page_requests needs' do
+      expect(run_tests.first).to include('3 examples, 2 failures', 'page_requests needs `trmnlp test --page-proxy`')
+    end
+  end
+
   context 'when a test does not hold' do
     let(:spec_body) do
       "RSpec.describe('Greeting') { it('shows the name') { expect(trmnl.render(device: { width: 800, height: 480 }, " \
