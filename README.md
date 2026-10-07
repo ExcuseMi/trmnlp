@@ -210,7 +210,7 @@ only on `main`.
 
 ## Running trmnlp
 
-The `bin/trmnlp` script is provided as a convenience. It will use the local Ruby gem if available, falling back to the `trmnl/trmnlp` Docker image.
+The `bin/trmnlp` script is provided as a convenience. It will use the local Ruby gem if available, falling back to the `trmnl/trmnlp` Docker image. `TRMNLP_DOCKER=1 bin/trmnlp test` uses the Docker image even with the gem installed, which gives the tests the same fonts as CI.
 
 You can modify the `bin/trmnlp` script to set up environment variables (plugin secrets, etc.) before running the server.
 
@@ -231,6 +231,22 @@ trmnlp serve
 ```
 
 ### Installing via Docker
+
+Save the `bin/trmnlp` script as `trmnlp` on your `PATH`, and every command runs in the Docker image:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/usetrmnl/trmnlp/main/templates/init/bin/trmnlp -o trmnlp
+chmod +x trmnlp
+sudo mv trmnlp /usr/local/bin/
+
+trmnlp init my_plugin
+cd my_plugin
+trmnlp serve
+```
+
+The script looks for a newer image once a day, publishes port 4567 for `serve` only, keeps your API key in `~/.config/trmnlp`, and on Linux runs trmnlp as you, so the files it writes are yours and not root's. To stay on one release, set `IMAGE=trmnl/trmnlp:v0.20.0` in it.
+
+Or without the script:
 
 ```sh
 docker run \
