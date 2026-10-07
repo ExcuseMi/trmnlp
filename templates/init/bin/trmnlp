@@ -38,9 +38,10 @@ else
     CONFIG_DIR="$HOME/.config/trmnlp"
 fi
 
-if [ ! -d "$CONFIG_DIR" ]; then
-    mkdir -p "$CONFIG_DIR"
-fi
+# What trmnlp caches is kept as well: a plugin's OAuth tokens, its saved data and transform state.
+CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/trmnl"
+
+mkdir -p "$CONFIG_DIR" "$CACHE_DIR"
 
 # Look for a newer image once a day. Offline, the image already here is run.
 PULLED="$CONFIG_DIR/.image-pulled"
@@ -57,13 +58,14 @@ SECURITY="$(docker info --format '{{.SecurityOptions}}' 2> /dev/null)"
 if [ "$(uname)" = Linux ] && [ "$(id -u)" != 0 ] && [ -n "$SECURITY" ] && [[ "$SECURITY" != *rootless* ]]
 then
     CONTAINER_HOME=/tmp/home
-    # .config is made for you as well: Docker would make it root's to mount the folder below into
-    # it, and Firefox hangs when it cannot write there.
+    # .config and .cache are made for you as well: Docker would make them root's to mount the
+    # folders below into them, and Firefox hangs when it cannot write there.
     ARGS=(
         --user "$(id -u):$(id -g)"
         --env HOME=/tmp/home
         --tmpfs "/tmp/home:exec,uid=$(id -u),gid=$(id -g)"
         --tmpfs "/tmp/home/.config:uid=$(id -u),gid=$(id -g)"
+        --tmpfs "/tmp/home/.cache:exec,uid=$(id -u),gid=$(id -g)"
     )
 fi
 
@@ -74,7 +76,13 @@ fi
 
 # Only serve listens, so every other command can run next to it.
 if [ "$1" = serve ]; then
-    ARGS+=(--publish 4567:4567)
+    PORT=4567
+    for ARG in "$@"; do
+        case "$PREVIOUS" in -p | --port) PORT="$ARG" ;; esac
+        case "$ARG" in --port=*) PORT="${ARG#--port=}" ;; esac
+        PREVIOUS="$ARG"
+    done
+    ARGS+=(--publish "$PORT:$PORT")
 fi
 
 # The whole Git repository is mounted when the plugin is a folder inside one, so its tests can read
@@ -90,6 +98,7 @@ exec docker run \
     --env CI \
     --env TRMNL_API_KEY \
     --volume "$CONFIG_DIR:$CONTAINER_HOME/.config/trmnlp" \
+    --volume "$CACHE_DIR:$CONTAINER_HOME/.cache/trmnl" \
     --volume "$ROOT_DIR:/plugin" \
     --workdir "/plugin/$SUB_DIR" \
     "$IMAGE" "$@"

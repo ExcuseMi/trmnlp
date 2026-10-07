@@ -17,8 +17,9 @@ RSpec.describe 'templates/init/bin/trmnlp' do
   let(:bash_starts) { File.join(tmp, 'bash-starts') }
   let(:stamp) { File.join(config_dir, 'trmnlp', '.image-pulled') }
   let(:env) do
-    { 'PATH' => path, 'HOME' => tmp, 'XDG_CONFIG_HOME' => config_dir, 'DOCKER_LOG' => docker_log,
-      'BASH_STARTS' => bash_starts, 'TRMNLP_DOCKER' => nil, 'CI' => nil, 'TRMNL_API_KEY' => nil }
+    { 'PATH' => path, 'HOME' => tmp, 'XDG_CONFIG_HOME' => config_dir, 'XDG_CACHE_HOME' => nil,
+      'DOCKER_LOG' => docker_log, 'BASH_STARTS' => bash_starts,
+      'TRMNLP_DOCKER' => nil, 'CI' => nil, 'TRMNL_API_KEY' => nil }
   end
   let(:id) { "#{Process.uid}:#{Process.gid}" }
 
@@ -125,6 +126,13 @@ RSpec.describe 'templates/init/bin/trmnlp' do
     expect(docker_run).to include('--publish 4567:4567')
   end
 
+  ['--port 5000', '-p 5000', '--port=5000'].each do |option|
+    it "publishes the port serve listens on with #{option}" do
+      run('serve', *option.split)
+      expect(docker_run).to include('--publish 5000:5000')
+    end
+  end
+
   it 'publishes no port for other commands, so they run next to serve' do
     run('lint')
     expect(docker_run).not_to include('--publish')
@@ -173,10 +181,21 @@ RSpec.describe 'templates/init/bin/trmnlp' do
 
     # Docker makes the folders above a mount as root. Firefox then cannot write its home and
     # `trmnlp test` hangs without a word, so both folders are made for the user first.
-    it 'gives that user a home and a .config it can write' do
+    it 'gives that user a home, a .config and a .cache it can write' do
       run('test')
       expect(docker_run).to include("--tmpfs /tmp/home:exec,uid=#{Process.uid},gid=#{Process.gid} " \
-                                    "--tmpfs /tmp/home/.config:uid=#{Process.uid},gid=#{Process.gid}")
+                                    "--tmpfs /tmp/home/.config:uid=#{Process.uid},gid=#{Process.gid} " \
+                                    "--tmpfs /tmp/home/.cache:exec,uid=#{Process.uid},gid=#{Process.gid}")
+    end
+
+    it 'keeps what trmnlp caches between runs, as the OAuth tokens of a plugin' do
+      run('serve')
+      expect(docker_run).to include("--volume #{tmp}/.cache/trmnl:/tmp/home/.cache/trmnl")
+    end
+
+    it 'keeps the cache where XDG_CACHE_HOME says' do
+      run('serve', XDG_CACHE_HOME: File.join(tmp, 'cache'))
+      expect(docker_run).to include("--volume #{tmp}/cache/trmnl:/tmp/home/.cache/trmnl")
     end
 
     it 'mounts the API key where that user looks for it' do

@@ -232,19 +232,21 @@ trmnlp serve
 
 ### Installing via Docker
 
-Save the `bin/trmnlp` script as `trmnlp` on your `PATH`, and every command runs in the Docker image:
+One line installs `trmnlp` as a command that runs the Docker image, with nothing else to install:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/usetrmnl/trmnlp/main/templates/init/bin/trmnlp -o trmnlp
-chmod +x trmnlp
-sudo mv trmnlp /usr/local/bin/
+curl -fsSL --create-dirs -o ~/.local/bin/trmnlp https://raw.githubusercontent.com/usetrmnl/trmnlp/main/templates/init/bin/trmnlp && chmod +x ~/.local/bin/trmnlp
+```
 
+Then it works as the gem does:
+
+```sh
 trmnlp init my_plugin
 cd my_plugin
 trmnlp serve
 ```
 
-The script looks for a newer image once a day, publishes port 4567 for `serve` only, keeps your API key in `~/.config/trmnlp`, and on Linux runs trmnlp as you, so the files it writes are yours and not root's. To stay on one release, set `IMAGE=trmnl/trmnlp:v0.20.0` in it.
+Any folder on your `PATH` will do in place of `~/.local/bin`. The command looks for a newer image once a day, publishes the port `serve` listens on, keeps your API key in `~/.config/trmnlp` and a plugin's OAuth tokens in `~/.cache/trmnl`, and on Linux runs trmnlp as you, so the files it writes are yours and not root's. To stay on one release, set `IMAGE=trmnl/trmnlp:v0.20.0` in it.
 
 Or without the script:
 

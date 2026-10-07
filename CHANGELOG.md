@@ -3,7 +3,7 @@
 
 ## Unreleased
 
-- The `bin/trmnlp` script that `trmnlp init` writes works for every command in Docker: it asks for a terminal only when there is one (it failed on CI and in scripts), publishes the port for `serve` only (`lint` and `test` failed while `serve` ran), runs as you on Linux so snapshots and `_build` are not root's, mounts the whole Git repository when the plugin is a folder inside one, passes `CI` on, and looks for a newer image once a day. `TRMNLP_DOCKER=1` uses Docker even with the gem installed. Saved as `trmnlp` on the `PATH`, it is a way to run trmnlp, `init` included, with no Ruby; the README has the commands. An existing plugin gets the new script from `trmnlp init <its folder>`, answering `y` for `bin/trmnlp` only.
+- The `bin/trmnlp` script that `trmnlp init` writes works for every command in Docker: it asks for a terminal only when there is one (it failed on CI and in scripts), publishes the port for `serve` only, and the one given with `--port` (`lint` and `test` failed while `serve` ran), keeps a plugin's OAuth tokens and saved data between runs, runs as you on Linux so snapshots and `_build` are not root's, mounts the whole Git repository when the plugin is a folder inside one, passes `CI` on, and looks for a newer image once a day. `TRMNLP_DOCKER=1` uses Docker even with the gem installed. Saved as `trmnlp` on the `PATH`, it is trmnlp with no Ruby, `init` included; the README has the one line that installs it. An existing plugin gets the new script from `trmnlp init <its folder>`, answering `y` for `bin/trmnlp` only.
 - `have_no_overflow(except: '.forecast')` and `screen.overflowing(except:)` leave out a box that hides content on purpose, and everything inside it.
 
 ## 0.20.0
