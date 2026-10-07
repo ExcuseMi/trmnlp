@@ -246,7 +246,7 @@ cd my_plugin
 trmnlp serve
 ```
 
-Any folder on your `PATH` will do in place of `~/.local/bin`. The command looks for a newer image once a day, publishes the port `serve` listens on, keeps your API key in `~/.config/trmnlp` and a plugin's OAuth tokens in `~/.cache/trmnl`, and on Linux runs trmnlp as you, so the files it writes are yours and not root's. To stay on one release, set `IMAGE=trmnl/trmnlp:v0.20.0` in it.
+Any folder on your `PATH` will do in place of `~/.local/bin`. The command asks for the latest image on every run and runs the one it has when offline, publishes the port `serve` listens on, keeps your API key in `~/.config/trmnlp` and a plugin's OAuth tokens in `~/.cache/trmnl`, and on Linux runs trmnlp as you, so the files it writes are yours and not root's. To stay on one release, set `IMAGE=trmnl/trmnlp:v0.20.0` in it.
 
 Or without the script:
 

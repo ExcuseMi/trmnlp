@@ -15,7 +15,6 @@ RSpec.describe 'templates/init/bin/trmnlp' do
   let(:plugin_dir) { File.join(tmp, 'plugin') }
   let(:docker_log) { File.join(tmp, 'docker.log') }
   let(:bash_starts) { File.join(tmp, 'bash-starts') }
-  let(:stamp) { File.join(config_dir, 'trmnlp', '.image-pulled') }
   let(:env) do
     { 'PATH' => path, 'HOME' => tmp, 'XDG_CONFIG_HOME' => config_dir, 'XDG_CACHE_HOME' => nil,
       'DOCKER_LOG' => docker_log, 'BASH_STARTS' => bash_starts,
@@ -25,7 +24,7 @@ RSpec.describe 'templates/init/bin/trmnlp' do
 
   before do
     FileUtils.mkdir_p([path, plugin_dir])
-    %w[env git id find touch mkdir grep].each { |tool| File.symlink(which(tool), File.join(path, tool)) }
+    %w[env git id mkdir].each { |tool| File.symlink(which(tool), File.join(path, tool)) }
     # The script finds bash on this PATH. A script that runs itself would start processes until the
     # machine is out of memory, so this bash counts its starts and gives up after 20.
     stand_in('bash', <<~SH)
@@ -40,7 +39,7 @@ RSpec.describe 'templates/init/bin/trmnlp' do
       echo "$*" >> "$DOCKER_LOG"
       case "$1" in
         info) echo "[name=seccomp,profile=builtin ${FAKE_DOCKER_SECURITY:-}]" ;;
-        pull) exit "${FAKE_PULL_STATUS:-0}" ;;
+        run) if [ "$2" = --pull ]; then exit "${FAKE_PULL_STATUS:-0}"; fi ;;
       esac
     SH
   end
@@ -144,32 +143,31 @@ RSpec.describe 'templates/init/bin/trmnlp' do
   end
 
   describe 'keeping the image up to date' do
-    it 'pulls the image on the first run' do
+    it 'asks for the latest image on every run' do
       run('lint')
-      expect(docker_calls).to include('pull trmnl/trmnlp')
+      expect(docker_run).to start_with('run --pull always ')
     end
 
-    it 'does not pull again the same day' do
-      2.times { run('lint') }
-      expect(docker_calls.count('pull trmnl/trmnlp')).to eq(1)
+    context 'when Docker itself fails, as with no network to ask the registry' do
+      it 'runs the image already here' do
+        run('lint', FAKE_PULL_STATUS: '125')
+        expect(docker_run).not_to include('--pull')
+      end
+
+      it 'ends as that second run does' do
+        expect(run('lint', FAKE_PULL_STATUS: '125').last).to be_success
+      end
     end
 
-    it 'pulls again a day later' do
-      run('lint')
-      File.utime(Time.now - 90_000, Time.now - 90_000, stamp)
-      run('lint')
-      expect(docker_calls.count('pull trmnl/trmnlp')).to eq(2)
-    end
+    context 'when the command fails, as a failing test does' do
+      it 'does not run it a second time' do
+        run('test', FAKE_PULL_STATUS: '1')
+        expect(docker_calls.grep(/\Arun /).size).to eq(1)
+      end
 
-    it 'runs the image it has when the pull fails, as when offline' do
-      run('lint', FAKE_PULL_STATUS: '1')
-      expect(docker_run).to end_with(' trmnl/trmnlp lint')
-    end
-
-    it 'tries the pull again on the next run after it failed' do
-      run('lint', FAKE_PULL_STATUS: '1')
-      run('lint')
-      expect(docker_calls.count('pull trmnl/trmnlp')).to eq(2)
+      it 'ends as the command did' do
+        expect(run('test', FAKE_PULL_STATUS: '1').last.exitstatus).to eq(1)
+      end
     end
   end
 

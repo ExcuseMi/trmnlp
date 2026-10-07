@@ -43,13 +43,6 @@ CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/trmnl"
 
 mkdir -p "$CONFIG_DIR" "$CACHE_DIR"
 
-# Look for a newer image once a day. Offline, the image already here is run.
-PULLED="$CONFIG_DIR/.image-pulled"
-if [ -z "$(find "$PULLED" -mmin -1440 2> /dev/null)" ]
-then
-    docker pull "$IMAGE" >&2 && touch "$PULLED"
-fi
-
 # On Linux the container's root is the host's root, and the files trmnlp writes (snapshots, _build,
 # a pulled plugin) would be root's. So trmnlp runs as you, with a home of its own to write in.
 # Docker Desktop and rootless Docker hand the files to you already.
@@ -90,15 +83,27 @@ fi
 ROOT_DIR="$(git rev-parse --show-toplevel 2> /dev/null || pwd)"
 SUB_DIR="$(git rev-parse --show-prefix 2> /dev/null)"
 
-exec docker run \
-    --rm \
-    --init \
-    --interactive \
-    "${ARGS[@]}" \
-    --env CI \
-    --env TRMNL_API_KEY \
-    --volume "$CONFIG_DIR:$CONTAINER_HOME/.config/trmnlp" \
-    --volume "$CACHE_DIR:$CONTAINER_HOME/.cache/trmnl" \
-    --volume "$ROOT_DIR:/plugin" \
-    --workdir "/plugin/$SUB_DIR" \
+ARGS+=(
+    --rm
+    --init
+    --interactive
+    --env CI
+    --env TRMNL_API_KEY
+    --volume "$CONFIG_DIR:$CONTAINER_HOME/.config/trmnlp"
+    --volume "$CACHE_DIR:$CONTAINER_HOME/.cache/trmnl"
+    --volume "$ROOT_DIR:/plugin"
+    --workdir "/plugin/$SUB_DIR"
     "$IMAGE" "$@"
+)
+
+# Always the latest image: Docker asks the registry on every run and pulls a newer one.
+docker run --pull always "${ARGS[@]}"
+STATUS=$?
+
+# 125 is a failure of Docker itself, as with no network to ask the registry: run the image already here.
+if [ "$STATUS" = 125 ]; then
+    docker run "${ARGS[@]}"
+    STATUS=$?
+fi
+
+exit "$STATUS"
