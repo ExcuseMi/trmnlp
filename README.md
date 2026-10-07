@@ -214,7 +214,7 @@ The `bin/trmnlp` script is provided as a convenience. It will use the local Ruby
 
 You can modify the `bin/trmnlp` script to set up environment variables (plugin secrets, etc.) before running the server.
 
-**Gem or Docker?** Install the gem if you already have Ruby >= 3.4 — it has the fastest startup. Use Docker for zero local setup.
+**Gem or Docker?** Use Docker for zero local setup: the image has Firefox, ImageMagick and everything else `trmnlp test` needs, and draws screens with the same fonts as CI. Install the gem if you already have Ruby >= 4.0; it starts about half a second sooner.
 
 ### Installing via RubyGems
 
